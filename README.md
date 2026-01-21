@@ -34,7 +34,7 @@ The system is divided into two distinct evolutionary stages:
 1.  Clone this repository into your Quicklisp local projects folder:
     ```bash
     cd ~/quicklisp/local-projects/
-    git clone [https://github.com/mandeluna/financial-analysis.git](https://github.com/mandeluna/financial-analysis.git)
+    git clone https://github.com/mandeluna/financial-analysis.git
     ```
 
 2.  Start your Lisp REPL (`sbcl` or via your editor).
