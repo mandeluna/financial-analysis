@@ -16,7 +16,8 @@
   :components ((:file "package")
                (:file "core")
 	       (:file "decision-trees")
-               (:file "bonds")))
+	       (:file "bonds")
+	       (:file "options")))
 
 ;;; SYSTEM 2: The "CLOS" Version (MOP Enabled)
 ;;; Depends on 'closer-mop' to standardize MOP behavior across implementations.

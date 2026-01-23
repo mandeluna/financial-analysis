@@ -73,3 +73,115 @@
     
     ;; Duration in periods / frequency = Duration in Years
     (/ (/ weighted-times price) frequency)))
+
+;;
+;; Constructor and accessors for Bond Frame
+;;
+(defun create-bond (name &rest proplist)
+  (setf (symbol-plist name) nil)
+  (create-node-aux name proplist)
+  name)
+
+(defun bond-coupon-rate (bond)
+  (my-get bond :coupon-rate))
+
+(defun bond-face-value (bond)
+  (my-get bond :face-value))
+
+(defun bond-call-value (bond)
+  (my-get bond :call-value))
+
+(defun bond-call-condition (bond)
+  (my-get bond :call-condition))
+
+(defun bond-life (bond)
+  (my-get bond :life))
+
+(defun bond-sd (bond)
+  (my-get bond :sd))
+
+(defun bond-discount-rate (bond)
+  (my-get bond :discount-rate))
+
+(defun node-payment (node)
+  (my-get node :payment))
+
+(defun node-call-condition (node)
+  (my-get node :call-condition))
+
+(defun node-discount-rate (node)
+  (my-get node :discount-rate))
+
+(defun node-coupon-rate (node)
+  (my-get node :coupon-rate))
+
+(defun node-face-value (node)
+  (my-get node :face-value))
+
+;;
+;; Special functions needed for bond valuation
+;; (*node-translation-table* see options.lisp)
+(defun simple-cutoff (node)
+  (let
+      ((discount-rate (node-discount-rate node))
+       (coupon-rate (node-coupon-rate node)))
+    (< discount-rate coupon-rate)))
+
+(defun par (node)               ; used as call price function
+  (node-face-value node))
+
+(defun nocall (node)
+  nil)
+
+;;
+;; Decision tree for bonds and callable bonds
+;;
+(defun build-bond-tree (bond n)
+  (let*
+      ((call-node-nucleus-symbol (gensym))
+       (chance-node-nucleus-symbol (gensym))
+       (time (float (bond-life bond)))
+       (period-length (/ time n))
+       (coupon-rate (* (bond-coupon-rate bond) period-length))
+       (face-value (bond-face-value bond))
+       (coupon-payment (* coupon-rate face-value))
+       (call-condition (bond-call-condition bond))
+       (call-value (bond-call-value bond))
+       (rate (* (bond-discount-rate bond) period-length))
+       (sd (* (bond-sd bond) (sqrt period-length))))
+    (create-node-nucleus chance-node-nucleus-symbol
+			 :type 'chance
+			 :exercise-function call-value
+			 :face-value face-value
+			 :upprob 0.5
+			 :upamt sd
+			 :downamt (- sd)
+			 :successor-nucleus-symbol call-node-nucleus-symbol
+			 :successors
+			 '((symbol :discount-rate
+			    (propor-change discount-rate upamt)
+				   :rate (propor-change discount-rate upamt)
+				   :prob upprob :left left)
+			   (symbol :discount-rate
+			    (propor-change discount-rate downamt)
+				   :rate (propor-change discount-rate downamt)
+				   :prob (- 1 upprob) :left left)))
+    (create-node-nucleus call-node-nucleus-symbol
+			 :type 'chance
+			 :exercise-function call-value
+			 :call-condition call-condition
+			 :payment coupon-payment
+			 :face-value face-value
+			 :coupon-rate coupon-rate
+			 :successor-nucleus-symbol chance-node-nucleus-symbol
+			 :successors
+			 '((symbol :type 'terminal             ; overrides chance type
+				   :discount-rate discount-rate
+				   :payoff payment
+				   :prob (if (funcall call-condition node) 1 0)
+				   :left (- left 1))
+			   (symbol :discount-rate discount-rate
+				   :payoff payment
+				   :prob (if (funcall call-condition node) 0 1)
+				   :left (- left 1))))
+    (create-node chance-node-nucleus-symbol :discount-rate rate :left n)))

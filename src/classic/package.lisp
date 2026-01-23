@@ -9,4 +9,6 @@
    #:bond-price
    #:macaulay-duration
    #:create-node
+   #:create-bond
+   #:build-bond-tree
    #:tree-value)) 
